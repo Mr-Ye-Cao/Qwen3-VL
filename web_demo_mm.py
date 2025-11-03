@@ -58,6 +58,10 @@ def _get_args():
                         type=int,
                         default=None,
                         help='Tensor parallel size for vLLM (default: auto)')
+    parser.add_argument('--max-model-len',
+                        type=int,
+                        default=None,
+                        help='Maximum model context length for vLLM (default: model default)')
 
     args = parser.parse_args()
     return args
@@ -74,14 +78,18 @@ def _load_model_processor(args):
             tensor_parallel_size = torch.cuda.device_count()
 
         # Initialize vLLM sync engine
-        model = LLM(
-            model=args.checkpoint_path,
-            trust_remote_code=True,
-            gpu_memory_utilization=args.gpu_memory_utilization,
-            enforce_eager=False,
-            tensor_parallel_size=tensor_parallel_size,
-            seed=0
-        )
+        llm_kwargs = {
+            'model': args.checkpoint_path,
+            'trust_remote_code': True,
+            'gpu_memory_utilization': args.gpu_memory_utilization,
+            'enforce_eager': False,
+            'tensor_parallel_size': tensor_parallel_size,
+            'seed': 0
+        }
+        if args.max_model_len is not None:
+            llm_kwargs['max_model_len'] = args.max_model_len
+
+        model = LLM(**llm_kwargs)
 
         # Load processor for vLLM
         processor = AutoProcessor.from_pretrained(args.checkpoint_path)
